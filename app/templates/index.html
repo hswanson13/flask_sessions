@@ -1,0 +1,13 @@
+<!doctype html>
+<html>
+    <head>
+        <title>{{ title }} - Microblog</title>
+    </head>
+    <body>
+        <h1>Hello, {{current_user.username if not current_user.is_anonymous else ""}}!</h1>
+        <h1>Hello, World!</h1>
+        <p> Hello count: {{session["hello_counter"]}}</p>
+        <a href="/bye"><button>Go to Bye</button></a>
+    </body>
+</html>
+

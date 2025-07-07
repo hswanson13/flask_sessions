@@ -1,0 +1,101 @@
+<!doctype html>
+<html>
+<head>
+<title>{{ title }} - Microblog</title>
+    {#    Load jQuery #}
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    {#    Load Bootstrap 5 #}
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    {#  Load grid.js w/ jQuery integration #}
+    <!-- Cant just use gridjs w jquery integration because I couldnt figure out how to use force render with it -->
+    <!-- <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script> -->
+    <script src="https://unpkg.com/gridjs@6.2.0/dist/gridjs.umd.js"></script>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/gridjs/dist/gridjs.umd.js"></script> -->
+    <script src="https://cdn.jsdelivr.net/npm/gridjs-jquery@4.0.0/dist/gridjs.production.min.js"></script>
+    <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet"/>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body>
+<div id="wrapper"></div>
+
+<script>
+    url = "{{url_for('table_data_keyset')}}"
+    saved_search = ""
+    columns = [
+        {id: "username", name: "Username"},
+        {id: "email", name: "Email"}
+    ]
+    debounceTimeout = 400;
+    const grid = new gridjs.Grid({
+            columns: columns,
+            server: {
+                url: url,
+                then: results => results.data,
+                total: results => results.total,
+            },
+            search: {
+                debounceTimeout: debounceTimeout,
+                keyword: saved_search,
+                server: {
+                    url: (prev, keyword, search) => {     
+                        return updateUrl(prev, {search:updateSearch(keyword,search)});
+                    }
+                },
+            },
+            pagination: {
+                server: {
+                    url: (prev, page, limit) => {
+                        return updateUrl(prev, {start: page * limit, length: limit})}
+                },
+                limit: 10
+            },
+            language: {
+                'search': {
+                'placeholder': '🔍 Search...'
+                }
+            },
+            resizable: true,
+        }).render(document.getElementById("wrapper"));
+
+
+    //INTERNAL FUNCTIONS
+    const updateUrl = (prev, query) => {
+        const url = new URL(window.location);
+        for (const search_type of Object.keys(query)){
+            if (search_type=='on_load_search'){
+                //we can leave these out of appending to the main url since they already have them!
+                continue;
+            }
+            const search = query[search_type];
+            if (search_type=='search'){
+                url.searchParams.set('search',search);
+                window.history.pushState(null, '', url.toString());
+                continue;
+            }
+
+            url.searchParams.set(search_type, search);
+            window.history.pushState(null, '', url.toString());
+        }
+        return prev + (prev.indexOf('?') >= 0 ? '&' : '?') + new URLSearchParams(query).toString();
+    };
+
+    const updateSearch = (previous_search,current_search) => {
+        if (previous_search=='' || previous_search==undefined) {
+            //dont need comma split if there is no search
+            return current_search;
+        }
+        if (previous_search==current_search) {
+            return '';
+        }
+        if (current_search=='' || current_search==undefined) {
+            //if there hasnt been anything search just return previous search, stops the comma from being appended on every reload to the page url
+            return previous_search
+        }
+        return previous_search+','+current_search;
+    }
+</script>
+</body>
+</html>
+

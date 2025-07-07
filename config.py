@@ -1,17 +1,15 @@
 from dataclasses import dataclass, field
-from typing import Optional
-from os import environ
-from os.path import dirname, split, join
+import os
 from typing import Literal
 
-
-root_dir = dirname(__file__)
-app_dir = join(root_dir, 'app')
+basedir = os.path.abspath(os.path.dirname(__file__))
+app_dir = os.path.join(basedir, 'app')
 
 @dataclass(init=False)
 class Config:
     SECRET_KEY: str = 'bite my shiny metal ass'
-    SQLALCHEMY_DATABASE_URI: str = 'sqlite:///'+join(root_dir, 'tempdb.sqlite')
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
+        'sqlite:///' + os.path.join(basedir, 'app.db')
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
 
     FLASK_APP="microblog.py"
@@ -36,7 +34,7 @@ class Config:
                 import env_personal
                 val = getattr(env_personal, k)
             except (ImportError, AttributeError):
-                val = environ.get(k, default)
+                val = os.environ.get(k, default)
 
             if type(default) == bool:
                 if str(val).lower() == "true":
