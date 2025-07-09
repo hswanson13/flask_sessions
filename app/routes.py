@@ -5,7 +5,7 @@ import sqlalchemy as sa
 from sqlalchemy import func
 from app.models import User
 from app.forms import LoginForm
-from flask_sqlakeyset import select_page
+from sqlakeyset import select_page
 
 @app.route('/')
 @app.route('/hello')
@@ -95,22 +95,43 @@ def table_data_keyset():
             User.username.like(f'%{search}%'),
             User.email.like(f'%{search}%')
         ))
+    
     count_query = db.select(func.count()).select_from(query.subquery())
     total = db.session.scalar(count_query)
+    length = request.args.get('length', 10, type=int)
+    start = request.args.get("start", 0, type=int)
+    page_num = int(start / length)
+    final_page_num, _  = divmod(total, length)
 
-    # gets the first page
-    page1 = select_page(db.session, query, per_page=20)
+    if page_num == 0 or "prev_page" not in session:
+        # First page or corrupted session
+        page = select_page(db.session, query, per_page=length)
+    elif page_num == final_page_num:
+        # Last Page
+        # https://github.com/djrobstep/sqlakeyset#page-objects
+        page = select_page(
+            db.session, 
+            query, 
+            per_page=length,
+            page = (None, True)
+        )
+    else: 
+        # In between pages
+        page_diff = page_num - session["prev_page_num"]
+        page = select_page(db.session, query, page=session["prev_page"])
+        step = 1 if page_diff > 0 else -1
+        for _ in range(abs(page_diff)):
+            page = select_page(
+                db.session, 
+                query, 
+                page = page.paging.next if step > 0 else page.paging.previous
+            )
+    session["prev_page"] = page.paging.bookmark_current
+    session["prev_page_num"] = page_num
 
-    # gets the key for the next page
-    next_page = page1.paging.next
-
-    # gets the second page
-    page2 = select_page(db.session, query, per_page=20, page=next_page)
-    print(page1)
-
-    results = db.session.execute(query)
+    results = [r[0] for r in page]
     return {
-        'data': [{'username':user.username, 'email': user.email} for user in page1],
+        'data': [{"id": user.id, 'username':user.username, 'email': user.email} for user in results],
         'total': total,
     }
 
